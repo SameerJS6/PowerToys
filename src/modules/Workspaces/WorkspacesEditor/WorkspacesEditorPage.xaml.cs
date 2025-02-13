@@ -5,6 +5,7 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -178,11 +179,30 @@ namespace WorkspacesEditor
             project.Initialize(App.ThemeManager.GetCurrentTheme());
         }
 
+        private string ExpandEnvironmentVariables(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return input;
+            }
+
+            return Regex.Replace(input, @"%([^%]+)%", match =>
+            {
+                string envVar = Environment.GetEnvironmentVariable(match.Groups[1].Value);
+                return envVar ?? match.Value; // If variable not found, keep original
+            });
+        }
+
         private void CommandLineTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            TextBox textBox = sender as TextBox;
-            Models.Application application = textBox.DataContext as Models.Application;
-            application.CommandLineTextChanged(textBox.Text);
+            if (sender is TextBox textBox && textBox.DataContext is Models.Application application)
+            {
+                string originalText = textBox.Text;
+
+                string expandedText = ExpandEnvironmentVariables(originalText);
+
+                application.CommandLineTextChanged(expandedText);
+            }
         }
 
         private void LaunchEditButtonClicked(object sender, RoutedEventArgs e)
